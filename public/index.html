@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="ru" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EditorSpace — Всё для видеомонтажа</title>
+  <meta name="description" content="EditorSpace — универсальный набор инструментов для видеомонтажёров. AI-удаление водяных знаков, загрузчик видео, библиотека ресурсов." />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { inter: ['Inter', 'sans-serif'] },
+          colors: {
+            dark: { 950: '#0a0a0f', 900: '#111118', 800: '#1a1a24', 700: '#24243a', 600: '#2e2e48' },
+            neon: { purple: '#a855f7', blue: '#6366f1', cyan: '#22d3ee', pink: '#ec4899' }
+          },
+          animation: {
+            'glow': 'glow 2s ease-in-out infinite alternate',
+            'float': 'float 6s ease-in-out infinite',
+            'shimmer': 'shimmer 2s linear infinite',
+            'pulse-slow': 'pulse 4s cubic-bezier(0.4,0,0.6,1) infinite',
+          },
+          keyframes: {
+            glow: { '0%': { boxShadow: '0 0 20px rgba(168,85,247,0.3)' }, '100%': { boxShadow: '0 0 40px rgba(168,85,247,0.6)' } },
+            float: { '0%,100%': { transform: 'translateY(0)' }, '50%': { transform: 'translateY(-10px)' } },
+            shimmer: { '0%': { backgroundPosition: '-200% 0' }, '100%': { backgroundPosition: '200% 0' } },
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    * { font-family: 'Inter', sans-serif; }
+    body { background: #0a0a0f; }
+    .gradient-text {
+      background: linear-gradient(135deg, #a855f7, #6366f1, #22d3ee);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .glass {
+      background: rgba(255,255,255,0.03);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+    .glass-card {
+      background: rgba(255,255,255,0.04);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255,255,255,0.07);
+      transition: all 0.4s cubic-bezier(0.4,0,0.2,1);
+    }
+    .glass-card:hover {
+      background: rgba(255,255,255,0.07);
+      border-color: rgba(168,85,247,0.3);
+      transform: translateY(-4px);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.4), 0 0 30px rgba(168,85,247,0.1);
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #7c3aed, #6366f1);
+      transition: all 0.3s ease;
+      position: relative; overflow: hidden;
+    }
+    .btn-primary::before {
+      content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+      transition: left 0.5s;
+    }
+    .btn-primary:hover::before { left: 100%; }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(124,58,237,0.4); }
+    .drop-zone { border: 2px dashed rgba(168,85,247,0.3); transition: all 0.3s ease; }
+    .drop-zone.dragover { border-color: #a855f7; background: rgba(168,85,247,0.08); }
+    .progress-bar-fill {
+      background: linear-gradient(90deg, #7c3aed, #6366f1, #22d3ee);
+      background-size: 200% 100%;
+      animation: shimmer 2s linear infinite;
+    }
+    .particle { position: absolute; border-radius: 50%; pointer-events: none; animation: float 6s ease-in-out infinite; }
+    .nav-link { position: relative; }
+    .nav-link::after {
+      content: ''; position: absolute; bottom: -4px; left: 0; width: 0; height: 2px;
+      background: linear-gradient(90deg, #a855f7, #6366f1);
+      transition: width 0.3s ease;
+    }
+    .nav-link:hover::after { width: 100%; }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #0a0a0f; }
+    ::-webkit-scrollbar-thumb { background: #2e2e48; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #7c3aed; }
+    .section-divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(168,85,247,0.2), transparent);
+    }
+    @keyframes fadeInUp { from { opacity:0; transform:translateY(30px); } to { opacity:1; transform:translateY(0); } }
+    .animate-in { animation: fadeInUp 0.7s ease forwards; opacity: 0; }
+  </style>
+</head>
+<body class="text-white overflow-x-hidden">
+
+  <div class="fixed inset-0 pointer-events-none z-0">
+    <div class="absolute top-0 left-1/4 w-96 h-96 bg-purple-600/5 rounded-full blur-3xl"></div>
+    <div class="absolute bottom-1/4 right-1/4 w-80 h-80 bg-indigo-600/5 rounded-full blur-3xl"></div>
+    <div class="absolute top-1/2 left-1/2 w-64 h-64 bg-cyan-500/3 rounded-full blur-3xl"></div>
+  </div>
+
+  <header class="glass fixed top-0 left-0 right-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        <a href="#" class="flex items-center gap-2 group">
+          <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center group-hover:shadow-lg group-hover:shadow-purple-500/30 transition-shadow">
+            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+          </div>
+          <span class="text-lg font-bold gradient-text">EditorSpace</span>
+        </a>
+        <nav class="hidden md:flex items-center gap-8">
+          <a href="#tools" class="nav-link text-sm text-gray-300 hover:text-white transition">Инструменты</a>
+          <a href="#downloader" class="nav-link text-sm text-gray-300 hover:text-white transition">Загрузчик</a>
+          <a href="#resources" class="nav-link text-sm text-gray-300 hover:text-white transition">Ресурсы</a>
+        </nav>
+        <div class="flex items-center gap-3">
+          <button onclick="showLoginModal()" class="btn-primary px-5 py-2 rounded-xl text-sm font-semibold">Войти</button>
+          <button id="mobileMenuBtn" class="md:hidden text-gray-400 hover:text-white p-2" onclick="toggleMobileMenu()">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+    <div id="mobileMenu" class="hidden md:hidden border-t border-white/5 pb-4">
+      <div class="px-4 pt-3 space-y-2">
+        <a href="#tools" class="block px-3 py-2 text-gray-300 hover:text-white hover:bg-white/5 rounded-lg transition" onclick="toggleMobileMenu()">Инструменты</a>
+        <a href="#downloader" class="block px-3 py-2 text-gray-300 hover:text-white hover:bg-white/5 rounded-lg transition" onclick="toggleMobileMenu()">Загрузчик</a>
+        <a href="#resources" class="block px-3 py-2 text-gray-300 hover:text-white hover:bg-white/5 rounded-lg transition" onclick="toggleMobileMenu()">Ресурсы</a>
+      </div>
+    </div>
+  </header>
+
+  <section class="relative min-h-screen flex items-center justify-center pt-16 px-4">
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+      <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass text-xs text-purple-300 mb-8 animate-in">
+        <span class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
+        Все инструменты бесплатны
+      </div>
+      <h1 class="text-4xl sm:text-5xl md:text-7xl font-black leading-tight mb-6 animate-in" style="animation-delay:0.1s">
+        Всё необходимое для<br/>
+        <span class="gradient-text">видеомонтажа</span><br/>
+        в одном месте
+      </h1>
+      <p class="text-base sm:text-lg text-gray-400 max-w-2xl mx-auto mb-10 animate-in" style="animation-delay:0.2s">
+        AI-инструменты, загрузчик видео, бесплатная музыка, LUT-ы и лучшие редакторы — всё собрано для того, чтобы ваш монтаж был на высшем уровне.
+      </p>
+      <div class="flex flex-col sm:flex-row items-center justify-center gap-4 animate-in" style="animation-delay:0.3s">
+        <a href="#tools" class="btn-primary px-8 py-3.5 rounded-2xl text-base font-bold shadow-lg shadow-purple-500/20 flex items-center gap-2">
+          <span>Начать работу</span>
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
+        </a>
+        <a href="#resources" class="px-8 py-3.5 rounded-2xl text-base font-semibold border border-white/10 hover:border-purple-500/40 hover:bg-white/5 transition-all">
+          Смотреть ресурсы
+        </a>
+      </div>
+      <div class="grid grid-cols-3 gap-6 mt-16 max-w-lg mx-auto animate-in" style="animation-delay:0.4s">
+        <div><div class="text-2xl font-bold gradient-text">50+</div><div class="text-xs text-gray-500 mt-1">Инструментов</div></div>
+        <div><div class="text-2xl font-bold gradient-text">4K</div><div class="text-xs text-gray-500 mt-1">Качество</div></div>
+        <div><div class="text-2xl font-bold gradient-text">∞</div><div class="text-xs text-gray-500 mt-1">Бесплатно</div></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-divider max-w-5xl mx-auto"></div>
+
+  <section id="tools" class="py-20 sm:py-28 px-4 relative">
+    <div class="max-w-4xl mx-auto">
+      <div class="text-center mb-12">
+        <span class="inline-block px-3 py-1 rounded-full text-xs font-medium bg-pink-500/10 text-pink-400 border border-pink-500/20 mb-4">AI-Аудио</span>
+        <h2 class="text-3xl sm:text-4xl font-bold mb-3">AI-Создание <span class="gradient-text">минусовок</span></h2>
+        <p class="text-gray-400 max-w-xl mx-auto">Нейросеть проанализирует трек, удалит вокал и выдаст вам чистый инструментал (минус) для ваших проектов.</p>
+      </div>
+      <div class="glass-card rounded-3xl p-6 sm:p-10">
+        <div id="dropZone" class="drop-zone rounded-2xl p-10 sm:p-16 text-center cursor-pointer" onclick="document.getElementById('fileInput').click()">
+          <input type="file" id="fileInput" accept="audio/*,video/mp4" class="hidden" onchange="handleFileSelect(event)" />
+          <div id="dropContent">
+            <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-pink-500/10 flex items-center justify-center">
+              <svg class="w-8 h-8 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/></svg>
+            </div>
+            <p class="text-lg font-semibold text-gray-200 mb-1">Перетащите песню сюда</p>
+            <p class="text-sm text-gray-500">или нажмите для выбора файла • MP3, WAV до 50 МБ</p>
+          </div>
+          <div id="fileInfo" class="hidden">
+            <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-green-500/10 flex items-center justify-center">
+              <svg class="w-8 h-8 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/></svg>
+            </div>
+            <p id="fileName" class="text-lg font-semibold text-green-300"></p>
+            <p id="fileSize" class="text-sm text-gray-500 mt-1"></p>
+          </div>
+        </div>
+        <div id="progressArea" class="hidden mt-6">
+          <div class="flex justify-between text-sm mb-2">
+            <span class="text-gray-400" id="progressLabel">Извлечение вокала...</span>
+            <span class="text-pink-400 font-mono" id="progressPercent">0%</span>
+          </div>
+          <div class="w-full h-2 bg-dark-700 rounded-full overflow-hidden">
+            <div id="progressBar" class="h-full rounded-full transition-all duration-300" style="width:0%; background: linear-gradient(90deg, #ec4899, #8b5cf6);"></div>
+          </div>
+        </div>
+        <button id="cleanBtn" onclick="extractMinus()" class="btn-primary w-full mt-6 py-3.5 rounded-xl font-bold text-base flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed" style="background: linear-gradient(135deg, #ec4899, #8b5cf6);" disabled>
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
+          Получить минус
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-divider max-w-5xl mx-auto"></div>
+
+  <section id="downloader" class="py-20 sm:py-28 px-4 relative">
+    <div class="max-w-4xl mx-auto">
+      <div class="text-center mb-12">
+        <span class="inline-block px-3 py-1 rounded-full text-xs font-medium bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 mb-4">Загрузчик</span>
+        <h2 class="text-3xl sm:text-4xl font-bold mb-3">Универсальный <span class="gradient-text">загрузчик видео</span></h2>
+        <p class="text-gray-400 max-w-xl mx-auto">Вставьте ссылку на видео с любой платформы и скачайте в нужном формате.</p>
+      </div>
+      <div class="glass-card rounded-3xl p-6 sm:p-10">
+        
+        <div class="relative mb-5">
+          <div class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+          </div>
+          <input id="videoUrl" type="url" placeholder="Вставьте ссылку на видео..." class="w-full pl-12 pr-4 py-4 bg-dark-800 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:border-purple-500/50 focus:outline-none focus:ring-1 focus:ring-purple-500/30 transition text-sm" />
+        </div>
+        
+        <div class="flex flex-col sm:flex-row gap-4">
+          <button onclick="downloadVideo()" class="btn-primary flex-1 py-4 rounded-xl font-bold text-base flex items-center justify-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+            Скачать MP4
+          </button>
+          <button onclick="downloadAudio()" class="flex-1 py-4 rounded-xl font-bold text-base flex items-center justify-center gap-2 border border-purple-500/30 text-purple-400 hover:bg-purple-500/10 transition-all">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/></svg>
+            Скачать MP3
+          </button>
+        </div>
+
+        <div class="mt-6 flex flex-wrap items-center justify-center gap-4 text-xs text-gray-600">
+          <span class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/3">▶ YouTube</span>
+          <span class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/3">♪ TikTok</span>
+          <span class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/3">📷 Instagram</span>
+          <span class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/3">🐦 Twitter</span>
+          <span class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/3">📌 Pinterest</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-divider max-w-5xl mx-auto"></div>
+
+  <section id="resources" class="py-20 sm:py-28 px-4 relative">
+    <div class="max-w-6xl mx-auto">
+      <div class="text-center mb-12">
+        <span class="inline-block px-3 py-1 rounded-full text-xs font-medium bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 mb-4">Библиотека</span>
+        <h2 class="text-3xl sm:text-4xl font-bold mb-3">Ресурсы и <span class="gradient-text">софт</span></h2>
+        <p class="text-gray-400 max-w-xl mx-auto">Ценные материалы и приложения для профессионального монтажа.</p>
+      </div>
+      <div class="grid md:grid-cols-3 gap-5">
+        <div class="glass-card rounded-2xl p-6 group">
+          <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-pink-500/20 to-purple-500/20 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
+            <svg class="w-6 h-6 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/></svg>
+          </div>
+          <h3 class="text-lg font-bold mb-2">Бесплатная музыка</h3>
+          <p class="text-sm text-gray-400 mb-5 leading-relaxed">Коллекция Royalty-free треков для ваших проектов. Без авторских претензий и ограничений монетизации.</p>
+          <div class="flex flex-wrap gap-2 mb-5">
+            <span class="px-2.5 py-1 text-xs rounded-lg bg-pink-500/10 text-pink-300">500+ треков</span>
+            <span class="px-2.5 py-1 text-xs rounded-lg bg-purple-500/10 text-purple-300">WAV / MP3</span>
+          </div>
+          <a href="/music_pack.zip" download="EditorSpace_Music_Pack.zip" class="w-full block text-center py-2.5 rounded-xl border border-white/10 text-sm font-semibold hover:border-pink-500/40 hover:bg-pink-500/5 transition-all">Скачать пак</a>
+        </div>
+        <div class="glass-card rounded-2xl p-6 group">
+          <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500/20 to-yellow-500/20 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
+            <svg class="w-6 h-6 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/></svg>
+          </div>
+          <h3 class="text-lg font-bold mb-2">Кинематографичные LUT-ы</h3>
+          <p class="text-sm text-gray-400 mb-5 leading-relaxed">Профессиональные цветовые пресеты для кино-эстетики. Совместимы с Premiere Pro, DaVinci, FCPX.</p>
+          <div class="flex flex-wrap gap-2 mb-5">
+            <span class="px-2.5 py-1 text-xs rounded-lg bg-orange-500/10 text-orange-300">120+ LUT-ов</span>
+            <span class="px-2.5 py-1 text-xs rounded-lg bg-yellow-500/10 text-yellow-300">.cube</span>
+          </div>
+          <button onclick="showToast('🎨 Набор LUT-ов скоро будет доступен!')" class="w-full py-2.5 rounded-xl border border-white/10 text-sm font-semibold hover:border-orange-500/40 hover:bg-orange-500/5 transition-all">Скачать LUT-ы</button>
+        </div>
+        <div class="glass-card rounded-2xl p-6 group">
+          <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500/20 to-cyan-500/20 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
+            <svg class="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+          </div>
+          <h3 class="text-lg font-bold mb-2">Бесплатные редакторы</h3>
+          <p class="text-sm text-gray-400 mb-5 leading-relaxed"> бесплатные взлом редакторы профессионального уровня для любых задач монтажа.</p>
+          <div class="space-y-2 mb-5">
+            <a href="https://adobe-after-effects.ru.uptodown.com/windows" target="_blank" class="flex items-center gap-2 text-sm text-cyan-400 hover:text-cyan-300 transition"><span>→</span> Adobe After Effects</a>
+            <a href="https://capcut.ru.uptodown.com/windows" target="_blank" class="flex items-center gap-2 text-sm text-cyan-400 hover:text-cyan-300 transition"><span>→</span> CapCut</a>
+            <a href="https://shotcut.ru.uptodown.com/windows" target="_blank" class="flex items-center gap-2 text-sm text-cyan-400 hover:text-cyan-300 transition"><span>→</span> Shotcut</a>
+          </div>
+          <button onclick="showToast('🎬 Полный обзор редакторов скоро появится!')" class="w-full py-2.5 rounded-xl border border-white/10 text-sm font-semibold hover:border-green-500/40 hover:bg-green-500/5 transition-all">Подробнее</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="border-t border-white/5 py-10 px-4 mt-10">
+    <div class="max-w-6xl mx-auto">
+      <div class="flex flex-col md:flex-row items-center justify-between gap-6">
+        <div class="flex items-center gap-2">
+          <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center">
+            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+          </div>
+          <span class="font-bold text-sm gradient-text">EditorSpace</span>
+        </div>
+        <div class="flex flex-wrap items-center justify-center gap-6 text-xs text-gray-500">
+          <a href="#" onclick="showToast('📄 Политика конфиденциальности будет доступна позже.');return false;" class="hover:text-gray-300 transition">Конфиденциальность</a>
+          <a href="#" onclick="showToast('⚠️ Скачивание видео не должно нарушать авторские права. Используйте сервис ответственно.');return false;" class="hover:text-gray-300 transition">Дисклеймер</a>
+          <a href="#" onclick="showToast('📧 Контакт: hello@editorspace.app');return false;" class="hover:text-gray-300 transition">Контакты</a>
+        </div>
+        <p class="text-xs text-gray-600">© 2026 EditorSpace. Все права защищены.</p>
+      </div>
+      <div class="mt-6 pt-4 border-t border-white/5 text-center">
+        <p class="text-xs text-gray-600 leading-relaxed max-w-2xl mx-auto">⚠️ Дисклеймер: Скачивание видео с платформ должно осуществляться в строгом соответствии с авторским правом и условиями использования соответствующих сервисов.</p>
+      </div>
+    </div>
+  </footer>
+
+  <div id="toast" class="fixed bottom-6 right-6 z-[100] transform translate-y-4 opacity-0 pointer-events-none transition-all duration-300">
+    <div class="glass px-5 py-3 rounded-xl shadow-2xl shadow-black/30 max-w-sm">
+      <p id="toastText" class="text-sm text-gray-200"></p>
+    </div>
+  </div>
+
+  <div id="loginModal" class="fixed inset-0 z-[90] hidden items-center justify-center p-4" style="background:rgba(0,0,0,0.6);backdrop-filter:blur(8px)">
+    <div class="glass-card rounded-3xl p-8 max-w-sm w-full relative">
+      <button onclick="closeLoginModal()" class="absolute top-4 right-4 text-gray-500 hover:text-white transition">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+      <h3 class="text-xl font-bold mb-1">Добро пожаловать</h3>
+      <p class="text-sm text-gray-400 mb-6">Войдите или создайте аккаунт</p>
+      
+      <input id="authEmail" type="email" placeholder="Email" class="w-full px-4 py-3 bg-dark-800 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:border-purple-500/50 focus:outline-none mb-3 text-sm" />
+      <input id="authPassword" type="password" placeholder="Пароль" class="w-full px-4 py-3 bg-dark-800 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:border-purple-500/50 focus:outline-none mb-5 text-sm" />
+      
+      <div class="flex gap-3">
+        <button onclick="handleLogin()" class="btn-primary flex-1 py-3 rounded-xl font-bold text-sm">Войти</button>
+        <button onclick="handleRegister()" class="flex-1 py-3 rounded-xl border border-white/10 hover:border-purple-500/40 hover:bg-white/5 transition font-bold text-sm">Регистрация</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Toast system (уведомления)
+    let toastTimer;
+    function showToast(message) {
+      const toast = document.getElementById('toast');
+      document.getElementById('toastText').textContent = message;
+      toast.classList.remove('translate-y-4', 'opacity-0', 'pointer-events-none');
+      toast.classList.add('translate-y-0', 'opacity-100');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        toast.classList.add('translate-y-4', 'opacity-0', 'pointer-events-none');
+        toast.classList.remove('translate-y-0', 'opacity-100');
+      }, 3500);
+    }
+
+    // Мобильное меню
+    function toggleMobileMenu() { document.getElementById('mobileMenu').classList.toggle('hidden'); }
+
+    // Модалка авторизации
+    function showLoginModal() {
+      const m = document.getElementById('loginModal');
+      m.classList.remove('hidden'); m.classList.add('flex');
+    }
+    function closeLoginModal() {
+      const m = document.getElementById('loginModal');
+      m.classList.add('hidden'); m.classList.remove('flex');
+    }
+
+    // --- ЛОГИКА АВТОРИЗАЦИИ И РЕГИСТРАЦИИ ---
+    async function handleRegister() {
+        const email = document.getElementById('authEmail').value.trim();
+        const password = document.getElementById('authPassword').value.trim();
+        if (!email || !password) { showToast('⚠️ Заполните все поля!'); return; }
+        try {
+            const response = await fetch('/api/register', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password })
+            });
+            const data = await response.json();
+            showToast(data.message);
+            if (data.success) { document.getElementById('authPassword').value = ''; }
+        } catch (error) { showToast('❌ Сервер недоступен'); }
+    }
+
+    async function handleLogin() {
+        const email = document.getElementById('authEmail').value.trim();
+        const password = document.getElementById('authPassword').value.trim();
+        if (!email || !password) { showToast('⚠️ Заполните все поля!'); return; }
+        try {
+            const response = await fetch('/api/login', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password })
+            });
+            const data = await response.json();
+            showToast(data.message);
+            if (data.success) {
+                closeLoginModal();
+                const loginBtn = document.querySelector('header button[onclick="showLoginModal()"]');
+                if(loginBtn) {
+                    loginBtn.textContent = email.split('@')[0];
+                    loginBtn.classList.replace('btn-primary', 'bg-green-600/20');
+                    loginBtn.classList.add('border', 'border-green-500/30', 'text-green-400');
+                    loginBtn.onclick = null;
+                }
+            }
+        } catch (error) { showToast('❌ Сервер недоступен'); }
+    }
+
+    // Drag & Drop для выбора файлов
+    const dropZone = document.getElementById('dropZone');
+    ['dragenter','dragover'].forEach(e => dropZone.addEventListener(e, ev => { ev.preventDefault(); dropZone.classList.add('dragover'); }));
+    ['dragleave','drop'].forEach(e => dropZone.addEventListener(e, ev => { ev.preventDefault(); dropZone.classList.remove('dragover'); }));
+    dropZone.addEventListener('drop', ev => {
+      const file = ev.dataTransfer.files[0];
+      if (file) showFile(file);
+    });
+
+    function handleFileSelect(e) { if (e.target.files[0]) showFile(e.target.files[0]); }
+    
+    function showFile(file) {
+      document.getElementById('dropContent').classList.add('hidden');
+      document.getElementById('fileInfo').classList.remove('hidden');
+      document.getElementById('fileName').textContent = file.name;
+      document.getElementById('fileSize').textContent = (file.size / 1048576).toFixed(1) + ' МБ';
+      document.getElementById('cleanBtn').disabled = false;
+    }
+
+    // 1. Создание минусовки (AI)
+    async function extractMinus() {
+      const fileInput = document.getElementById('fileInput');
+      const file = fileInput.files[0];
+
+      if (!file) { showToast('⚠️ Сначала выберите песню!'); return; }
+
+      const btn = document.getElementById('cleanBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<svg class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg> Обработка...';
+
+      const area = document.getElementById('progressArea');
+      area.classList.remove('hidden');
+
+      let progress = 0;
+      let isServerDone = false;
+      const interval = setInterval(() => {
+        if (progress < 85) progress += Math.random() * 5 + 1;
+        if (isServerDone) progress = 100;
+        document.getElementById('progressPercent').textContent = Math.floor(progress) + '%';
+        document.getElementById('progressBar').style.width = progress + '%';
+        if (progress >= 100) clearInterval(interval);
+      }, 200);
+
+      const formData = new FormData();
+      formData.append('audio', file);
+
+      try {
+          const response = await fetch('/api/extract-minus', { method: 'POST', body: formData });
+          const data = await response.json();
+          isServerDone = true;
+
+          if(data.success) {
+              document.getElementById('progressLabel').textContent = 'Готово!';
+              btn.innerHTML = '✅ Минус готов!';
+              btn.style.background = 'rgba(34, 197, 94, 0.2)';
+              btn.style.border = '1px solid rgba(34, 197, 94, 0.3)';
+              btn.style.color = '#4ade80';
+
+              // --- АВТОМАТИЧЕСКОЕ СКАЧИВАНИЕ ---
+              if (data.fileUrl) {
+                  const a = document.createElement('a');
+                  a.href = data.fileUrl;
+                  a.download = 'Vocal_Removed_Minus.mp3'; 
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+              }
+
+              setTimeout(() => showToast(`🎉 ${data.message}`), 500);
+          }
+      } catch (error) {
+          isServerDone = true;
+          showToast('❌ Ошибка связи с сервером');
+          btn.innerHTML = 'Повторить';
+          btn.disabled = false;
+      }
+    }
+
+    // 2. Скачивание видео (MP4)
+    async function downloadVideo() {
+      const url = document.getElementById('videoUrl').value.trim();
+      if (!url) { showToast('⚠️ Вставьте ссылку на видео!'); return; }
+
+      showToast(`⏳ Ищем видео...`);
+
+      try {
+          const response = await fetch('/api/download', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ url: url })
+          });
+          const data = await response.json();
+
+          if(data.success) {
+              showToast(`✅ Начинаем загрузку MP4...`);
+              if (data.fileUrl) {
+                  const a = document.createElement('a');
+                  a.href = data.fileUrl;
+                  a.download = 'downloaded_video.mp4'; 
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+              }
+              document.getElementById('videoUrl').value = ''; 
+          }
+      } catch (error) {
+          showToast('❌ Сервер недоступен');
+      }
+    }
+
+    // 3. Скачивание аудио (MP3)
+    async function downloadAudio() {
+        const url = document.getElementById('videoUrl').value.trim();
+        if (!url) { showToast('⚠️ Вставьте ссылку!'); return; }
+
+        showToast(`🎵 Извлекаем музыку...`);
+        try {
+            const response = await fetch('/api/download-audio', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: url })
+            });
+            const data = await response.json();
+
+            if(data.success) {
+                showToast(`✅ Загружаем MP3...`);
+                if (data.fileUrl) {
+                    const a = document.createElement('a');
+                    a.href = data.fileUrl; a.download = 'music.m4a'; 
+                    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                }
+                document.getElementById('videoUrl').value = ''; 
+            }
+        } catch (error) { showToast('❌ Сервер недоступен'); }
+    }
+
+    // Анимации при появлении блоков
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.style.animationPlayState = 'running';
+          entry.target.classList.add('animate-in');
+        }
+      });
+    }, { threshold: 0.1 });
+    document.querySelectorAll('section > div').forEach(el => observer.observe(el));
+
+    // Закрытие модалки при клике вне её
+    document.getElementById('loginModal').addEventListener('click', e => {
+      if (e.target === e.currentTarget) closeLoginModal();
+    });
+  </script>
+</body>
+</html>
