@@ -1,4 +1,10 @@
 const express = require('express');
+const multer = require('multer');
+const upload = multer({ dest: '/tmp/' }); // Папка для временного хранения загруженных песен
+const Replicate = require('replicate');
+const replicate = new Replicate({
+  auth: process.env.REPLICATE_API_TOKEN, // Сервер сам найдет твой ключ
+});
 const cors = require('cors');
 const path = require('path');
 const youtubedl = require('youtube-dl-exec');
@@ -63,17 +69,43 @@ app.post('/api/login', (req, res) => {
 });
 
 
-// 1. Извлечение минусовки (Заглушка для AI)
-app.post('/api/extract-minus', (req, res) => {
-    setTimeout(() => {
+// --- 1. РЕАЛЬНОЕ СОЗДАНИЕ МИНУСОВКИ (AI Spleeter) ---
+app.post('/api/extract-minus', upload.single('audio'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ success: false, message: 'Файл не загружен' });
+        }
+
+        // 1. Превращаем песню в шифр (Base64), чтобы отправить по сети
+        const fs = require('fs');
+        const fileData = fs.readFileSync(req.file.path);
+        const base64Audio = `data:${req.file.mimetype};base64,${fileData.toString('base64')}`;
+
+        // 2. Отправляем песню в нейросеть Spleeter
+        const output = await replicate.run(
+            "cjwbw/spleeter:3a1b0213d2fbc1450a41f6a1529124ed0b2ba57b0fb8444a85ee36ba5cfdc56a", // Уникальный ID нейросети
+            {
+                input: {
+                    audio: base64Audio
+                }
+            }
+        );
+
+        // 3. Удаляем файл с нашего сервера (он нам больше не нужен, бережем память)
+        fs.unlinkSync(req.file.path);
+
+        // 4. Нейросеть возвращает нам ссылки. output.accompaniment — это и есть минус!
         res.json({ 
             success: true, 
-            message: 'Минусовка успешно извлечена!',
-            fileUrl: '/minus_result.mp3' // <-- НОВАЯ СТРОЧКА: указываем путь к файлу
+            message: 'Нейросеть успешно разделила трек!',
+            fileUrl: output.accompaniment 
         });
-    }, 4000); 
-});
 
+    } catch (error) {
+        console.error('❌ Ошибка ИИ:', error);
+        res.status(500).json({ success: false, message: 'Ошибка при обработке ИИ' });
+    }
+});
 // --- 4. МУЗЫКА (Только звук) ---
 // Эндпоинт генерации ссылки для аудио
 app.post('/api/download-audio', (req, res) => {
